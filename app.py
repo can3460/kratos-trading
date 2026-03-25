@@ -671,7 +671,9 @@ def build_sector_chart(ds: MarketDataService) -> go.Figure:
     dem = DemeterAgent(ds)
     scores = dem.all_sector_scores()
     if not scores:
-        return go.Figure()
+        fig = go.Figure()
+        fig.update_layout(title="No sector data", **_PLOT_LAYOUT, height=360)
+        return fig
     items   = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     sectors = [i[0] for i in items]
     vals    = [i[1] for i in items]
@@ -682,11 +684,14 @@ def build_sector_chart(ds: MarketDataService) -> go.Figure:
         textfont=dict(size=10, color="#8badc7"),
     ))
     fig.add_vline(x=50, line=dict(color="#37474f", dash="dot", width=1))
+    # NOTE: xaxis / yaxis set via update_xaxes/yaxes to avoid duplicate-kwarg
+    # clash when spreading _PLOT_LAYOUT (which already contains xaxis/yaxis keys)
     fig.update_layout(
         title=dict(text="Sector Momentum vs SPY", font=dict(color="#00e5ff", size=13)),
-        xaxis=dict(range=[0, 105], title="Score"), yaxis=dict(tickfont=dict(size=10)),
         height=360, **_PLOT_LAYOUT,
     )
+    fig.update_xaxes(range=[0, 105], title_text="Score")
+    fig.update_yaxes(tickfont=dict(size=10))
     return fig
 
 
@@ -1143,15 +1148,73 @@ with tab_brain:
                     for o in d.objectors:
                         st.markdown(f"- ❌ `{o.agent_name}` ({o.score:.1f})")
 
-        # ── Evidence ───────────────────────────────────────────
+        # ── Evidence Log ───────────────────────────────────────
         with st.expander(t("evidence_exp"), expanded=False):
-            for e in res.reasoning:
-                lvl = ("🟢" if any(w in e.lower()
-                               for w in ["bull","strong","above","growth","value","golden"])
-                       else ("🔴" if any(w in e.lower()
-                               for w in ["bear","weak","below","contraction","oversold","death"])
-                       else "🔵"))
-                st.markdown(f"{lvl} `{e}`")
+            if not res.reasoning:
+                st.caption("No evidence recorded.")
+            else:
+                BULL_KW = {"bull","strong","above","growth","value","golden","cross",
+                           "breakout","momentum","oversold","accumulation","upslope"}
+                BEAR_KW = {"bear","weak","below","contraction","oversold","death",
+                           "breakdown","distribution","overbought","downslope","declining"}
+
+                # Group by agent prefix  [Orion], [Atlas] …
+                groups: dict = {}
+                for entry in res.reasoning:
+                    try:
+                        if entry.startswith("[") and "]" in entry:
+                            bracket_end = entry.index("]")
+                            agent = entry[1:bracket_end]
+                            text  = entry[bracket_end + 2:].strip()
+                        else:
+                            agent = "System"
+                            text  = entry.strip()
+                    except Exception:
+                        agent = "System"
+                        text  = str(entry)
+                    groups.setdefault(agent, []).append(text)
+
+                _AG_COLORS = {
+                    "Orion":"#ffd54f","Atlas":"#4fc3f7","Aether":"#26c6da",
+                    "Hermes":"#ab47bc","Demeter":"#66bb6a","Phoenix":"#00e5ff",
+                    "System":"#4a7fa5",
+                }
+                rows_html = []
+                for agent, items in groups.items():
+                    col = _AG_COLORS.get(agent, "#4a7fa5")
+                    for txt in items:
+                        words = set(txt.lower().split())
+                        if words & BULL_KW:
+                            icon, ic = "▲", "#00e564"
+                        elif words & BEAR_KW:
+                            icon, ic = "▼", "#ef5350"
+                        else:
+                            icon, ic = "●", "#4a7fa5"
+
+                        rows_html.append(
+                            f'<tr>'
+                            f'<td style="width:80px;padding:4px 8px;white-space:nowrap;">'
+                            f'<span style="background:{col}22;color:{col};border:1px solid {col}44;'
+                            f'padding:1px 7px;border-radius:8px;font-size:0.7rem;">{agent}</span></td>'
+                            f'<td style="padding:4px 8px;font-size:0.78rem;color:#c8d6e5;">'
+                            f'<span style="color:{ic};margin-right:6px;">{icon}</span>{txt}</td>'
+                            f'</tr>'
+                        )
+
+                table_html = (
+                    '<div style="background:#020408;border:1px solid #1e3a5f;border-radius:6px;'
+                    'overflow:hidden;max-height:380px;overflow-y:auto;">'
+                    '<table style="width:100%;border-collapse:collapse;">'
+                    '<thead><tr>'
+                    '<th style="background:#0d1321;color:#4a7fa5;font-size:0.68rem;'
+                    'padding:6px 8px;text-align:left;border-bottom:1px solid #1e3a5f;">AGENT</th>'
+                    '<th style="background:#0d1321;color:#4a7fa5;font-size:0.68rem;'
+                    'padding:6px 8px;text-align:left;border-bottom:1px solid #1e3a5f;">EVIDENCE</th>'
+                    '</tr></thead>'
+                    '<tbody>' + "".join(rows_html) + '</tbody>'
+                    '</table></div>'
+                )
+                st.markdown(table_html, unsafe_allow_html=True)
 
         # ── Watchlist summary ──────────────────────────────────
         if len(st.session_state.results) > 1:
@@ -1183,10 +1246,12 @@ with tab_brain:
                 return "color:#616161"
 
             action_col_name = t("action_col")
-            st.dataframe(
-                df_sum.style.applymap(colour_action, subset=[action_col_name]),
-                use_container_width=True, hide_index=True,
-            )
+            try:
+                # pandas >= 2.1 uses .map(); older versions use .applymap()
+                styled = df_sum.style.map(colour_action, subset=[action_col_name])
+            except AttributeError:
+                styled = df_sum.style.applymap(colour_action, subset=[action_col_name])
+            st.dataframe(styled, use_container_width=True, hide_index=True)
 
 
 # ──────────────────────────────────────────────────────────────
