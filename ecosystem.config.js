@@ -2,15 +2,15 @@ module.exports = {
   apps: [
     {
       name: "kratos-trading",
-      script: "streamlit",
+      script: "C:\\Users\\canad\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
       args: [
-        "run", "app.py",
+        "-m", "streamlit", "run", "app.py",
         "--server.port", "8501",
         "--server.headless", "true",
         "--browser.gatherUsageStats", "false",
         "--server.fileWatcherType", "poll",   // OneDrive klasörü için gerekli
       ],
-      interpreter: "none",   // streamlit direkt çalıştır (Python değil)
+      interpreter: "none",   // python.exe direkt çalıştır
       cwd: "C:\\Users\\canad\\OneDrive\\Masaüstü\\GitProjects\\DayiApp\\Kratos",
       watch: false,           // pm2'nin kendi watch'ını kapat (streamlit kendi yapıyor)
       autorestart: true,      // crash olursa yeniden başlat
