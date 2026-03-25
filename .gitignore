@@ -1,0 +1,48 @@
+# ── Python ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+dist/
+build/
+
+# ── Streamlit ────────────────────────────────────
+.streamlit/secrets.toml
+
+# ── Logs & temp ──────────────────────────────────
+*.log
+kratos_log.txt
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# ── IDE ──────────────────────────────────────────
+.vscode/
+.idea/
+*.code-workspace
+
+# ── Secrets / env ────────────────────────────────
+.env
+.env.*
+secrets.toml
+*.key
+*.pem
+
+# ── Claude internal ──────────────────────────────
+.claude/
+
+# ── Node (docx generator used locally only) ──────
+node_modules/
+gen_docx.js
+package.json
+package-lock.json
